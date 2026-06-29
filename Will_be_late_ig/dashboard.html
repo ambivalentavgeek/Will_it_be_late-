@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Will It Be Late? — Zomato Delivery Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--red:#E23744;--red-dim:rgba(226,55,68,0.12);--green:#00C48C;--green-dim:rgba(0,196,140,0.1);--yellow:#FFB800;--yellow-dim:rgba(255,184,0,0.1);--blue:#3B82F6;--bg:#0D0F14;--bg2:#14171F;--bg3:#1C2030;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#F0F2F7;--muted:#7A8099;--muted2:#9BA3BF;--font:'Space Grotesk',sans-serif;--mono:'JetBrains Mono',monospace;--radius:12px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;}
+header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 2rem;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:32px;height:32px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-text{font-size:.95rem;font-weight:700;}
+.logo-sub{font-size:.65rem;color:var(--muted);}
+.api-pill{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:.72rem;color:var(--muted);font-family:var(--mono);}
+.dot{width:7px;height:7px;border-radius:50%;background:#444;}
+.dot.on{background:var(--green);box-shadow:0 0 6px var(--green);}
+.dot.off{background:var(--red);}
+.tabs{display:flex;gap:2px;padding:1rem 2rem 0;background:var(--bg2);border-bottom:1px solid var(--border);}
+.tab{padding:8px 18px;border-radius:8px 8px 0 0;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--muted);border:1px solid transparent;border-bottom:none;transition:all .15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--red);background:var(--bg);border-color:var(--border);}
+main{padding:1.5rem 2rem;max-width:1300px;margin:0 auto;}
+.panel{display:none;}.panel.active{display:block;}
+.search-hero{padding:2rem 0 1.5rem;text-align:center;}
+.search-hero h1{font-size:2.2rem;font-weight:700;letter-spacing:-.5px;line-height:1.2;}
+.search-hero h1 span{color:var(--red);}
+.search-hero p{color:var(--muted);font-size:.9rem;margin-top:8px;}
+.search-box{display:flex;max-width:640px;margin:1.5rem auto 0;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--radius);overflow:hidden;transition:border-color .2s;}
+.search-box:focus-within{border-color:var(--red);}
+.search-box input{flex:1;background:transparent;border:none;padding:14px 18px;color:var(--text);font-family:var(--font);font-size:.95rem;outline:none;}
+.search-box input::placeholder{color:var(--muted);}
+.search-opts{display:flex;align-items:center;padding:0 12px;border-left:1px solid var(--border);}
+.search-opts select{background:transparent;border:none;color:var(--muted);font-size:.78rem;font-family:var(--font);outline:none;cursor:pointer;}
+.search-opts select option{background:var(--bg3);}
+.search-btn{background:var(--red);border:none;padding:0 20px;color:#fff;font-family:var(--font);font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity .2s;white-space:nowrap;}
+.search-btn:hover{opacity:.88;}
+.search-btn:disabled{opacity:.4;cursor:not-allowed;}
+.city-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:1rem;}
+.chip{padding:5px 14px;border-radius:20px;border:1px solid var(--border);font-size:.75rem;color:var(--muted);cursor:pointer;transition:all .15s;background:var(--bg2);}
+.chip:hover{border-color:var(--red);color:var(--red);}
+#resultsArea{margin-top:1.5rem;}
+.location-bar{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:1rem;}
+.location-text{flex:1;}
+.location-name{font-size:.9rem;font-weight:500;}
+.location-city{font-size:.72rem;color:var(--muted);margin-top:1px;}
+.location-badge{background:var(--green-dim);color:var(--green);border:1px solid rgba(0,196,140,.2);border-radius:20px;padding:3px 10px;font-size:.7rem;font-weight:600;}
+.resto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem;}
+.resto-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .2s;}
+.resto-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 4px 24px rgba(0,0,0,.4);}
+.resto-card.late{border-left:3px solid var(--red);}
+.resto-card.ontime{border-left:3px solid var(--green);}
+.resto-header{padding:14px 14px 10px;}
+.resto-name{font-size:.92rem;font-weight:600;margin-bottom:4px;}
+.resto-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:.68rem;font-weight:500;}
+.tag-food{background:var(--bg3);color:var(--muted2);}
+.tag-dist{background:rgba(59,130,246,.12);color:var(--blue);}
+.tag-late{background:var(--red-dim);color:var(--red);}
+.tag-ontime{background:var(--green-dim);color:var(--green);}
+.resto-body{padding:10px 14px 14px;border-top:1px solid var(--border);}
+.time-display{display:flex;align-items:flex-end;gap:4px;margin-bottom:8px;}
+.time-num{font-size:2rem;font-weight:700;font-family:var(--mono);line-height:1;}
+.time-unit{font-size:.75rem;color:var(--muted);padding-bottom:4px;}
+.prob-row{display:flex;align-items:center;gap:8px;}
+.prob-label{font-size:.68rem;color:var(--muted);width:90px;flex-shrink:0;}
+.bar-track{flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+.prob-val{font-size:.7rem;font-family:var(--mono);width:36px;text-align:right;color:var(--muted);}
+.resto-footer{padding:8px 14px;background:var(--bg3);display:flex;align-items:center;justify-content:space-between;}
+.resto-conditions{font-size:.68rem;color:var(--muted);display:flex;gap:8px;}
+.deliverable-badge{font-size:.68rem;color:var(--green);font-weight:500;}
+.detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:none;align-items:flex-end;justify-content:center;}
+.detail-overlay.open{display:flex;}
+.detail-sheet{background:var(--bg2);border-radius:16px 16px 0 0;width:100%;max-width:560px;padding:1.5rem;border:1px solid var(--border);border-bottom:none;animation:slideUp .25s ease;max-height:85vh;overflow-y:auto;}
+@keyframes slideUp{from{transform:translateY(60px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.sheet-close{float:right;background:var(--bg3);border:none;color:var(--muted);cursor:pointer;border-radius:6px;padding:4px 10px;font-size:.8rem;}
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;}
+@media(max-width:700px){.stat-row{grid-template-columns:1fr 1fr;}.resto-grid{grid-template-columns:1fr;}}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem;}
+.stat-val{font-size:1.8rem;font-weight:700;font-family:var(--mono);line-height:1;}
+.stat-lbl{font-size:.72rem;color:var(--muted);margin-top:3px;}
+.ctable{width:100%;border-collapse:collapse;font-size:.83rem;}
+.ctable th{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);font-size:.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+.ctable td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.03);}
+.ctable tr.best td{background:var(--red-dim);}
+.ctable tr:hover td{background:var(--bg3);}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.68rem;font-weight:600;font-family:var(--mono);}
+.badge-g{background:var(--green-dim);color:var(--green);}
+.badge-r{background:var(--red-dim);color:var(--red);}
+.frow{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.fname{font-size:.75rem;color:var(--muted);width:190px;flex-shrink:0;}
+.ftrack{flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.ffill{height:100%;background:var(--red);border-radius:3px;}
+.fpct{font-size:.7rem;font-family:var(--mono);color:var(--muted);width:40px;text-align:right;}
+.pstep{display:flex;gap:12px;}
+.pline{display:flex;flex-direction:column;align-items:center;}
+.pcircle{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--red);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:var(--red);flex-shrink:0;font-family:var(--mono);}
+.pconn{width:2px;flex:1;background:var(--border);margin:3px 0;min-height:18px;}
+.pcontent{padding-bottom:1.2rem;}
+.ptitle{font-weight:600;font-size:.88rem;margin-bottom:3px;}
+.pdesc{font-size:.78rem;color:var(--muted);line-height:1.5;}
+.pcode{font-family:var(--mono);font-size:.7rem;color:var(--green);background:var(--bg3);padding:5px 10px;border-radius:5px;margin-top:5px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;}
+@media(max-width:800px){.g2{grid-template-columns:1fr;}}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;}
+.card-title{font-size:.65rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;}
+.spin{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:sp .7s linear infinite;display:inline-block;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.loading{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.83rem;justify-content:center;padding:2rem;}
+.empty{text-align:center;padding:3rem 1rem;color:var(--muted);}
+.empty-icon{font-size:2.5rem;margin-bottom:12px;}
+.empty h3{font-size:1rem;color:var(--text);margin-bottom:6px;}
+.empty p{font-size:.82rem;line-height:1.6;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">🍔</div>
+    <div><div class="logo-text">Will It Be Late?</div><div class="logo-sub">Zomato ML Delivery Predictor</div></div>
+  </div>
+  <div class="api-pill"><div class="dot" id="statusDot"></div><span id="statusText">Connecting...</span></div>
+</header>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('order',this)">🍽️ Order Food</div>
+  <div class="tab" onclick="switchTab('overview',this)">📊 Overview</div>
+  <div class="tab" onclick="switchTab('compare',this)">📈 Models</div>
+  <div class="tab" onclick="switchTab('pipeline',this)">⚙️ Pipeline</div>
+</div>
+<main>
+
+<!-- ORDER TAB -->
+<div class="panel active" id="panel-order">
+  <div class="search-hero">
+    <h1>Find Food Near <span>Your Location</span></h1>
+    <p>Type your address — we detect your city, show nearby restaurants from Zomato data,<br>and predict if each delivery will be on time or late.</p>
+  </div>
+  <div class="search-box">
+    <input type="text" id="addressInput" placeholder="e.g. Kukatpally, Hyderabad  or  Koramangala, Bangalore" onkeydown="if(event.key==='Enter')doSearch()">
+    <div class="search-opts">
+      <select id="orderHour" title="Order time">
+        <option value="8">8 AM</option><option value="10">10 AM</option>
+        <option value="12">12 PM</option><option value="13" selected>1 PM</option>
+        <option value="15">3 PM</option><option value="19">7 PM</option>
+        <option value="20">8 PM</option><option value="21">9 PM</option>
+      </select>
+    </div>
+    <button class="search-btn" id="searchBtn" onclick="doSearch()">Find Restaurants →</button>
+  </div>
+  <div class="city-chips" id="cityChips"><span style="font-size:.72rem;color:var(--muted);align-self:center;">Try:</span></div>
+  <div id="resultsArea">
+    <div class="empty">
+      <div class="empty-icon">📍</div>
+      <h3>Enter your delivery address above</h3>
+      <p>We cover 22 major Indian cities: Bangalore, Hyderabad, Mumbai,<br>Chennai, Pune, Kolkata, Jaipur, Indore, Goa and more.</p>
+    </div>
+  </div>
+</div>
+
+<!-- OVERVIEW TAB -->
+<div class="panel" id="panel-overview">
+  <div style="padding:1.5rem 0 1rem;"><h2 style="font-size:1.4rem;font-weight:700;margin-bottom:4px;">Dataset Overview</h2><p style="font-size:.83rem;color:var(--muted);">45,584 Zomato India delivery orders — what the model learned from.</p></div>
+  <div class="stat-row">
+    <div class="stat"><div class="stat-val" style="color:var(--green)">92.7%</div><div class="stat-lbl">Best Model Accuracy</div></div>
+    <div class="stat"><div class="stat-val">45,584</div><div class="stat-lbl">Orders Analysed</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--yellow)">24.7%</div><div class="stat-lbl">Were Late (&gt;32 min)</div></div>
+    <div class="stat"><div class="stat-val">22</div><div class="stat-lbl">Cities Covered</div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-title">Top Delay Factors (XGBoost Importance)</div><div id="featBars"><div class="loading"><div class="spin"></div>Loading...</div></div></div>
+    <div class="card"><div class="card-title">On-Time vs Late Split</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:.8rem;color:var(--muted)">On-Time (≤32 min)</span><span style="font-family:var(--mono);font-size:.8rem;">75.3%</span></div><div class="bar-track" style="height:8px;"><div class="bar-fill" style="width:75.3%;background:var(--green);"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:.8rem;color:var(--muted)">Late (&gt;32 min)</span><span style="font-family:var(--mono);font-size:.8rem;">24.7%</span></div><div class="bar-track" style="height:8px;"><div class="bar-fill" style="width:24.7%;background:var(--red);"></div></div></div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;">
+        <div style="font-size:.75rem;color:var(--muted);line-height:1.8;"><div>📦 <strong style="color:var(--text)">Late threshold:</strong> 32 min (75th percentile)</div><div>🌆 <strong style="color:var(--text)">Cities:</strong> Bangalore, Hyderabad, Mumbai + 19 more</div><div>🛵 <strong style="color:var(--text)">Vehicles:</strong> Motorcycle, Scooter, Bicycle, E-Scooter</div><div>🍽️ <strong style="color:var(--text)">Food types:</strong> Meal, Snack, Drinks, Buffet</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPARE TAB -->
+<div class="panel" id="panel-compare">
+  <div style="padding:1.5rem 0 1rem;"><h2 style="font-size:1.4rem;font-weight:700;margin-bottom:4px;">Model Comparison</h2><p style="font-size:.83rem;color:var(--muted);">Trained on 36,467 orders, tested on 9,117 held-out orders.</p></div>
+  <div class="card" style="margin-bottom:1.5rem;"><div class="card-title">All Models — Test Set Results</div><div id="compareTable"><div class="loading"><div class="spin"></div>Loading...</div></div></div>
+  <div class="g2">
+    <div class="card"><div class="card-title">Confusion Matrix — Random Forest (Best)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;max-width:200px;margin-bottom:12px;">
+        <div style="background:var(--green-dim);border-radius:6px;padding:10px;text-align:center;font-family:var(--mono);font-weight:600;color:var(--green);">6,592<div style="font-size:.6rem;color:var(--muted);font-weight:400;">True Neg</div></div>
+        <div style="background:var(--red-dim);border-radius:6px;padding:10px;text-align:center;font-family:var(--mono);font-weight:600;color:var(--red);">272<div style="font-size:.6rem;color:var(--muted);font-weight:400;">False Pos</div></div>
+        <div style="background:rgba(255,184,0,.1);border-radius:6px;padding:10px;text-align:center;font-family:var(--mono);font-weight:600;color:var(--yellow);">397<div style="font-size:.6rem;color:var(--muted);font-weight:400;">False Neg</div></div>
+        <div style="background:var(--green-dim);border-radius:6px;padding:10px;text-align:center;font-family:var(--mono);font-weight:600;color:var(--green);">1,856<div style="font-size:.6rem;color:var(--muted);font-weight:400;">True Pos</div></div>
+      </div>
+      <div style="font-size:.75rem;color:var(--muted);line-height:1.8;"><div>✅ Caught <strong style="color:var(--text)">82.4%</strong> of late deliveries</div><div>✅ Cleared <strong style="color:var(--text)">96.0%</strong> of on-time orders</div></div>
+    </div>
+    <div class="card"><div class="card-title">Why Random Forest Won</div>
+      <div style="font-size:.8rem;color:var(--muted);line-height:1.9;">
+        <div>🌲 <strong style="color:var(--text)">200 trees ensemble</strong> — stable, low variance</div>
+        <div>🔗 <strong style="color:var(--text)">Captures interactions</strong> — rain + jam = 3× delay</div>
+        <div>📊 <strong style="color:var(--text)">No scaling needed</strong> — works on raw values</div>
+        <div>⚡ <strong style="color:var(--text)">Handles missing data</strong> — robust to NaNs</div>
+        <div>🏆 <strong style="color:var(--text)">AUC: 0.974</strong> — near-perfect discrimination</div>
+        <div style="margin-top:8px;padding:8px;background:var(--green-dim);border-radius:6px;color:var(--green);">92.66% Accuracy · 84.73% F1</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PIPELINE TAB -->
+<div class="panel" id="panel-pipeline">
+  <div style="padding:1.5rem 0 1rem;"><h2 style="font-size:1.4rem;font-weight:700;margin-bottom:4px;">ML Pipeline</h2><p style="font-size:.83rem;color:var(--muted);">Every step from raw CSV to live address-based prediction.</p></div>
+  <div class="g2">
+    <div>
+      <div class="pstep"><div class="pline"><div class="pcircle">01</div><div class="pconn"></div></div><div class="pcontent"><div class="ptitle">Load & Inspect</div><div class="pdesc">Read 45,584 Zomato orders with 20 columns including coordinates, agent info, timestamps, weather.</div><div class="pcode">df = pd.read_csv('Zomato_Dataset.csv')</div></div></div>
+      <div class="pstep"><div class="pline"><div class="pcircle">02</div><div class="pconn"></div></div><div class="pcontent"><div class="ptitle">Clean Missing Values</div><div class="pdesc">NaN in Age (1,854), Ratings (1,908), Weather (616). Median for numbers, 'Unknown' for text.</div><div class="pcode">df.fillna(df.median()) | df[col].fillna('Unknown')</div></div></div>
+      <div class="pstep"><div class="pline"><div class="pcircle">03</div><div class="pconn"></div></div><div class="pcontent"><div class="ptitle">Engineer Distance</div><div class="pdesc">Haversine formula on restaurant/delivery lat-lon gives real km. Average: 9.3 km per order.</div><div class="pcode">haversine(lat1,lon1,lat2,lon2) → km</div></div></div>
+      <div class="pstep"><div class="pline"><div class="pcircle">04</div><div class="pconn"></div></div><div class="pcontent"><div class="ptitle">Engineer Time Features</div><div class="pdesc">Pickup wait, order_hour, is_peak_hour (12–14h, 19–22h), day_of_week, is_weekend.</div><div class="pcode">is_peak = 1 if hour in [12..14, 19..22]</div></div></div>
+      <div class="pstep"><div class="pline"><div class="pcircle">05</div><div class="pconn"></div></div><div class="pcontent"><div class="ptitle">Food Complexity Score</div><div class="pdesc">Domain knowledge: Drinks=1, Snack=2, Meal=3, Buffet=4. Longer prep = higher score.</div><div class="pcode">{'Meal':3,'Buffet':4,'Snack':2,'Drinks':1}</div></div></div>
+      <div class="pstep"><div class="pline"><div class="pcircle">06</div></div><div class="pcontent"><div class="ptitle">Label Encode Categoricals</div><div class="pdesc">LabelEncoder on Weather, Traffic, City, Vehicle, Festival, Food type → integers. Saved to encoders.pkl.</div><div class="pcode">le.fit_transform(df[col]) → encoders.pkl</div></div></div>
+    </div>
+    <div>
+      <div class="pstep"><div class="pline"><div class="pcircle">07</div><div class="pconn"></div></div><div class="pcontent"><div class="ptitle">Define Target Variable</div><div class="pdesc">is_late = 1 if delivery &gt; 32 min (75th percentile of all orders). 24.7% of orders are late.</div><div class="pcode">is_late = (Time_taken &gt; 32).astype(int)</div></div></div>
+      <div class="pstep"><div class="pline"><div class="pcircle">08</div><div class="pconn"></div></div><div class="pcontent"><div class="ptitle">80/20 Stratified Split</div><div class="pdesc">Train: 36,467. Test: 9,117. Stratified to preserve the 24.7% late class ratio perfectly.</div><div class="pcode">train_test_split(..., stratify=y)</div></div></div>
+      <div class="pstep"><div class="pline"><div class="pcircle">09</div><div class="pconn"></div></div><div class="pcontent"><div class="ptitle">Train 4 Models</div><div class="pdesc">Logistic Regression, Linear Regression, Random Forest (200 trees), XGBoost (300 trees).</div><div class="pcode">RF → 92.7% | XGB → 92.5% | LR → 83.8%</div></div></div>
+      <div class="pstep"><div class="pline"><div class="pcircle">10</div><div class="pconn"></div></div><div class="pcontent"><div class="ptitle">Save Best Model</div><div class="pdesc">Random Forest saved as best_model.pkl with encoders.pkl and scaler.pkl for inference.</div><div class="pcode">pickle.dump(model, open('best_model.pkl','wb'))</div></div></div>
+      <div class="pstep"><div class="pline"><div class="pcircle">11</div><div class="pconn"></div></div><div class="pcontent"><div class="ptitle">Address Geocoding</div><div class="pdesc">User types address → Nominatim (free OpenStreetMap API) converts it to lat/lon coordinates.</div><div class="pcode">GET nominatim.openstreetmap.org/search?q=...</div></div></div>
+      <div class="pstep"><div class="pline"><div class="pcircle">12</div></div><div class="pcontent"><div class="ptitle">City Match + Delivery Radius</div><div class="pdesc">Closest city found by Haversine distance → restaurants within 15 km filtered → Random Forest predicts lateness for each.</div><div class="pcode">POST /api/geocode → restaurants + predictions</div></div></div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- DETAIL SHEET -->
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetail(event)">
+  <div class="detail-sheet" id="detailSheet">
+    <button class="sheet-close" onclick="closeOverlay()">✕ Close</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+const API='http://localhost:5000/api';
+let currentResults=null;
+
+async function checkHealth(){
+  try{
+    const r=await fetch(API+'/health',{signal:AbortSignal.timeout(3000)});
+    if(r.ok){const d=await r.json();document.getElementById('statusDot').className='dot on';document.getElementById('statusText').textContent=d.model+' · '+d.cities+' cities';return true;}
+  }catch{}
+  document.getElementById('statusDot').className='dot off';
+  document.getElementById('statusText').textContent='Backend offline — run python app.py';
+  return false;
+}
+
+const SAMPLES=['Koramangala, Bangalore','Banjara Hills, Hyderabad','Andheri, Mumbai','Anna Nagar, Chennai','Kothrud, Pune','Salt Lake, Kolkata','Vijay Nagar, Indore','Civil Lines, Jaipur','Panjim, Goa','Aundh, Pune'];
+function buildChips(){
+  const c=document.getElementById('cityChips');
+  SAMPLES.forEach(addr=>{
+    const chip=document.createElement('span');
+    chip.className='chip';chip.textContent=addr;
+    chip.onclick=()=>{document.getElementById('addressInput').value=addr;doSearch();};
+    c.appendChild(chip);
+  });
+}
+
+async function doSearch(){
+  const address=document.getElementById('addressInput').value.trim();
+  const hour=parseInt(document.getElementById('orderHour').value);
+  if(!address)return;
+  const btn=document.getElementById('searchBtn');
+  const area=document.getElementById('resultsArea');
+  btn.disabled=true;btn.textContent='Searching...';
+  area.innerHTML='<div class="loading"><div class="spin"></div> Geocoding address and finding restaurants...</div>';
+  try{
+    const r=await fetch(API+'/geocode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address,order_hour:hour,order_day_of_week:new Date().getDay()})});
+    const d=await r.json();
+    if(!r.ok){area.innerHTML=`<div style="background:var(--red-dim);border:1px solid var(--red);border-radius:var(--radius);padding:1rem 1.25rem;"><div style="color:var(--red);font-weight:600;margin-bottom:4px;">⚠️ ${d.error}</div><div style="color:var(--muted);font-size:.8rem;">Make sure the backend is running: <code>python app.py</code></div></div>`;return;}
+    currentResults=d;renderResults(d);
+  }catch(e){
+    area.innerHTML='<div style="background:var(--red-dim);border:1px solid var(--red);border-radius:var(--radius);padding:1rem 1.25rem;"><div style="color:var(--red);font-weight:600;">⚠️ Cannot connect to backend</div><div style="color:var(--muted);font-size:.8rem;margin-top:4px;">Run <code style="font-family:var(--mono)">python app.py</code> first.</div></div>';
+  }finally{btn.disabled=false;btn.textContent='Find Restaurants →';}
+}
+
+function renderResults(d){
+  const area=document.getElementById('resultsArea');
+  const late=d.restaurants.filter(r=>r.is_late).length;
+  const ontime=d.restaurants.length-late;
+  let html=`<div class="location-bar">
+    <span style="font-size:1.1rem;">📍</span>
+    <div class="location-text">
+      <div class="location-name">${d.display_name.split(',').slice(0,3).join(', ')}</div>
+      <div class="location-city">Zomato city matched: <strong>${d.city}</strong> · ${d.total_deliverable} restaurants within 15 km</div>
+    </div>
+    <span class="location-badge">✓ Deliverable Area</span>
+  </div>`;
+  if(d.total_deliverable===0){
+    html+=`<div style="background:rgba(255,184,0,.1);border:1px solid rgba(255,184,0,.2);border-radius:var(--radius);padding:1rem 1.25rem;font-size:.83rem;color:var(--yellow);">⚠️ No restaurants found within 15 km of your location in ${d.city}. Try a more central address.</div>`;
+  }else{
+    html+=`<div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center;"><span style="font-size:.75rem;color:var(--muted);">${d.total_deliverable} restaurants found —</span><span class="tag tag-ontime">✅ ${ontime} on time</span><span class="tag tag-late">⚠️ ${late} likely late</span></div><div class="resto-grid">`;
+    const EMOJI={Meal:'🍛',Snack:'🥪',Drinks:'🥤',Buffet:'🍽️'};
+    d.restaurants.forEach((r,i)=>{
+      const cls=r.is_late?'late':'ontime';
+      const color=r.is_late?'var(--red)':'var(--green)';
+      const statusTag=r.is_late?'<span class="tag tag-late">⚠️ Likely Late</span>':'<span class="tag tag-ontime">✅ On Time</span>';
+      const emoji=EMOJI[r.food_type]||'🍴';
+      html+=`<div class="resto-card ${cls}" onclick="openDetail(${i})">
+        <div class="resto-header">
+          <div class="resto-name">${emoji} ${r.name}</div>
+          <div class="resto-meta"><span class="tag tag-food">${r.food_type}</span><span class="tag tag-dist">📍 ${r.delivery_distance_km} km</span>${statusTag}</div>
+        </div>
+        <div class="resto-body">
+          <div class="time-display"><span class="time-num" style="color:${color}">${r.estimated_minutes}</span><span class="time-unit">min est.</span></div>
+          <div class="prob-row"><span class="prob-label">Late probability</span><div class="bar-track"><div class="bar-fill" style="width:${r.probability}%;background:${color}"></div></div><span class="prob-val">${r.probability}%</span></div>
+        </div>
+        <div class="resto-footer">
+          <div class="resto-conditions"><span>🌤 ${r.weather}</span><span>🚦 ${r.traffic}</span></div>
+          <span class="deliverable-badge">✓ Delivers to you</span>
+        </div>
+      </div>`;
+    });
+    html+='</div>';
+  }
+  area.innerHTML=html;
+}
+
+function openDetail(idx){
+  if(!currentResults)return;
+  const r=currentResults.restaurants[idx];
+  const color=r.is_late?'var(--red)':'var(--green)';
+  const EMOJI={Meal:'🍛',Snack:'🥪',Drinks:'🥤',Buffet:'🍽️'};
+  const PREP={Meal:'Medium (15–20 min)',Snack:'Low (5–10 min)',Drinks:'Very Low (2–5 min)',Buffet:'High (20–30 min)'};
+  document.getElementById('detailContent').innerHTML=`
+    <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px;">${EMOJI[r.food_type]||'🍴'} ${r.name}</h2>
+    <div style="color:var(--muted);font-size:.8rem;margin-bottom:1rem;">${currentResults.city} · ${r.delivery_distance_km} km from you</div>
+    <div style="background:${r.is_late?'var(--red-dim)':'var(--green-dim)'};border:1px solid ${color};border-radius:10px;padding:1rem;margin-bottom:1rem;">
+      <div style="font-size:1.6rem;font-weight:700;color:${color}">${r.is_late?'⚠️ Likely Late':'✅ Expected On Time'}</div>
+      <div style="font-size:.82rem;color:var(--muted);margin-top:4px;">${r.probability}% chance of being late · Est. ${r.estimated_minutes} min delivery</div>
+      <div class="bar-track" style="margin-top:8px;height:6px;"><div class="bar-fill" style="width:${r.probability}%;background:${color}"></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:1rem;">
+      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:1.4rem;font-weight:700;font-family:var(--mono);color:${color}">${r.estimated_minutes}</div><div style="font-size:.65rem;color:var(--muted)">Est. Minutes</div></div>
+      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:1.4rem;font-weight:700;font-family:var(--mono)">${r.delivery_distance_km}</div><div style="font-size:.65rem;color:var(--muted)">km from you</div></div>
+      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:1.4rem;font-weight:700;font-family:var(--mono)">32</div><div style="font-size:.65rem;color:var(--muted)">min threshold</div></div>
+    </div>
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Delivery Conditions</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:12px;font-size:.82rem;display:flex;flex-direction:column;gap:6px;margin-bottom:1rem;">
+      <div>🌤 <strong>Weather:</strong> ${r.weather}</div>
+      <div>🚦 <strong>Traffic:</strong> ${r.traffic}</div>
+      <div>🍽️ <strong>Food type:</strong> ${r.food_type}</div>
+      <div>⏱️ <strong>Prep complexity:</strong> ${PREP[r.food_type]||'Medium'}</div>
+    </div>
+    <div style="font-size:.7rem;color:var(--muted);">Prediction by <strong style="color:var(--text)">Random Forest</strong> (92.7% accuracy) trained on 45,584 Zomato India orders.</div>`;
+  document.getElementById('detailOverlay').classList.add('open');
+}
+function closeDetail(e){if(e.target===document.getElementById('detailOverlay'))closeOverlay();}
+function closeOverlay(){document.getElementById('detailOverlay').classList.remove('open');}
+
+async function loadMetrics(){
+  const FI={'multiple_deliveries':0.2646,'Festival':0.1630,'Road_traffic_density':0.1068,'Delivery_person_Ratings':0.0974,'Vehicle_condition':0.0721,'Weather_conditions':0.0677,'order_hour':0.0665,'delivery_distance_km':0.0338,'Delivery_person_Age':0.0328};
+  const METRICS={'Logistic Regression':{accuracy:.8382,f1:.5999,precision:.7713,recall:.4909,roc_auc:.8578},'Linear Regression':{accuracy:.8344,f1:.5554,precision:.825,recall:.4186,roc_auc:.8578},'Random Forest':{accuracy:.9266,f1:.8473,precision:.8722,recall:.8238,roc_auc:.974},'XGBoost':{accuracy:.9249,f1:.8452,precision:.861,recall:.83,roc_auc:.9749}};
+  const LABELS={'multiple_deliveries':'Multiple Deliveries','Festival':'Festival Day','Road_traffic_density':'Road Traffic','Delivery_person_Ratings':'Driver Rating','Vehicle_condition':'Vehicle Condition','Weather_conditions':'Weather','order_hour':'Order Hour','delivery_distance_km':'Delivery Distance','Delivery_person_Age':'Driver Age'};
+  let fi=FI,metrics=METRICS,best='Random Forest';
+  try{const r=await fetch(API+'/metrics');if(r.ok){const d=await r.json();fi=d.feature_importance;metrics=d.models;best=d.best_model;}}catch{}
+  const max=Object.values(fi)[0];
+  document.getElementById('featBars').innerHTML=Object.entries(fi).slice(0,9).map(([k,v])=>`<div class="frow"><div class="fname">${LABELS[k]||k}</div><div class="ftrack"><div class="ffill" style="width:${(v/max*100).toFixed(1)}%"></div></div><div class="fpct">${(v*100).toFixed(1)}%</div></div>`).join('');
+  let html=`<table class="ctable"><thead><tr><th>Model</th><th>Accuracy</th><th>F1</th><th>Precision</th><th>Recall</th><th>AUC</th><th></th></tr></thead><tbody>`;
+  Object.entries(metrics).forEach(([name,m])=>{const isBest=name===best;html+=`<tr class="${isBest?'best':''}"><td style="font-weight:${isBest?600:400}">${name}${isBest?' ⭐':''}</td><td style="font-family:var(--mono)">${(m.accuracy*100).toFixed(2)}%</td><td style="font-family:var(--mono)">${(m.f1*100).toFixed(2)}%</td><td style="font-family:var(--mono)">${(m.precision*100).toFixed(2)}%</td><td style="font-family:var(--mono)">${(m.recall*100).toFixed(2)}%</td><td style="font-family:var(--mono)">${m.roc_auc.toFixed(3)}</td><td><span class="badge ${isBest?'badge-g':'badge-r'}">${isBest?'✓ Best':'Sub'}</span></td></tr>`;});
+  document.getElementById('compareTable').innerHTML=html+'</tbody></table>';
+}
+
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  el.classList.add('active');
+}
+
+(async()=>{buildChips();await checkHealth();await loadMetrics();})();
+</script>
+</body>
+</html>
